@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -63,25 +63,56 @@ func decodeJson(w http.ResponseWriter, r *http.Request) (*Message, error) {
 	return &msg, nil
 }
 
+func routes(ctx context.Context, d *Dispatcher) *mux.Router {
+	r := mux.NewRouter()
+
+	r.HandleFunc("/", handleNotify(d, ctx)).
+		Methods("POST")
+
+	return r
+}
+
+func server(ctx context.Context, addr string, d *Dispatcher) (listener net.Listener, ch chan error) {
+	ch = make(chan error)
+
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		mux := routes(ctx, d)
+		ch <- http.Serve(listener, mux)
+	}()
+
+	return listener, ch
+}
+
 func main() {
+	d := NewDispatcher(3)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	listener, ch := server(ctx, ":8080", d)
+	defer listener.Close()
+	fmt.Println("Server started at", listener.Addr())
 
 	sigCh := make(chan os.Signal, 1)
 	defer close(sigCh)
 
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT)
 	go func() {
+		fmt.Println("listening signals.")
 		<-sigCh
+		fmt.Println("Signal received.")
+		d.Wait()
+		fmt.Println("Dispatcher wait end.")
 		cancel()
-		// http://qiita.com/ww24/items/7c7863421a1a538c7bc3
+		fmt.Println("cancel.")
+		listener.Close()
+		fmt.Println("Listener close.")
 	}()
 
-	d := NewDispatcher(3)
-
-	r := mux.NewRouter()
-	r.HandleFunc("/", handleNotify(d, ctx)).
-		Methods("POST")
-
-	log.Fatal(http.ListenAndServe(":8080", r))
+	<-ch
 }

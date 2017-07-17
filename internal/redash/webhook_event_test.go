@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const ValidJson = `
+const ValidJSON = `
 {
 	"url_base": "http://redash.sitedomain.jp",
 	"event": "alert_state_change",
@@ -30,7 +30,7 @@ const ValidJson = `
 
 func TestParseWithValidJson(t *testing.T) {
 	examples := []string{
-		ValidJson,
+		ValidJSON,
 	}
 
 	for _, str := range examples {
