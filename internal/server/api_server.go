@@ -24,8 +24,8 @@ type APIServer struct {
 }
 
 func writeResponse(w http.ResponseWriter, code int, status string, result string) {
-	fmt.Fprintf(w, "{\"status\":\"%s\", \"result\":\"%s\"}\n", status, result)
 	w.WriteHeader(code)
+	fmt.Fprintf(w, "{\"status\":\"%s\", \"result\":\"%s\"}\n", status, result)
 }
 
 func handleNotify(d *Dispatcher, ctx context.Context) func(w http.ResponseWriter, r *http.Request) {
