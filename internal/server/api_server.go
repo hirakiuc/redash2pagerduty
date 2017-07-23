@@ -23,10 +23,14 @@ type APIServer struct {
 	cancel context.CancelFunc
 }
 
+func writeResponse(w http.ResponseWriter, code int, status string, result string) {
+	fmt.Fprintf(w, "{\"status\":\"%s\", \"result\":\"%s\"}\n", status, result)
+	w.WriteHeader(code)
+}
+
 func handleNotify(d *Dispatcher, ctx context.Context) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Println("received")
 
 		event, err := decodeJSON(w, r)
 		if err != nil {
@@ -39,22 +43,20 @@ func handleNotify(d *Dispatcher, ctx context.Context) func(w http.ResponseWriter
 			fmt.Fprintf(os.Stdout, "Worked ! %s\n", event.Event)
 		})
 
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "{\"result\": \"Received\"}")
+		writeResponse(w, http.StatusOK, "ok", "Received")
 	}
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request) (*redash.WebhookEvent, error) {
 	if r.Body == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "{\"result\":\"require json\"}")
+		writeResponse(w, http.StatusBadRequest, "failure", "require json")
 		return nil, errors.New("Require json")
 	}
 
 	// TODO validate with JsonSchema
 	event, err := redash.Parse(r.Body)
 	if err != nil {
-		fmt.Fprintf(w, "{\"result\":\"decode failed\"}")
+		writeResponse(w, http.StatusBadRequest, "failure", "Invalid json")
 		return nil, err
 	}
 
